@@ -1,0 +1,7 @@
+python3 -m venv myenv
+source myenv/bin/activate
+python manage.py runserver
+
+
+admin password@123
+Prabodh Password

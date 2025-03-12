@@ -1,0 +1,167 @@
+{% extends 'grocery/base.html' %}
+{% block content %}
+{% load cart_filters %}
+
+<style>
+    .container {
+        width: 100%;
+        text-align: center;
+        padding: 20px;
+    }
+    .category-title {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        justify-content: center;
+        padding: 20px;
+    }
+    .product-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        padding: 15px;
+        width: 350px;
+        cursor: pointer;
+        text-align: center;
+        transition: transform 0.3s;
+    }
+    .product-card:hover {
+        transform: scale(1.05);
+    }
+    .product-card img {
+        width: 100%;
+        height: 250px;
+        border-radius: 5px;
+    }
+    .product-card h5 {
+        margin: 10px 0;
+        font-size: 18px;
+    }
+    .product-card p {
+        color: #555;
+        margin: 5px 0;
+        font-size: 16px;
+    }
+    .update-cart-btn, .increase, .decrease {
+        background-color: #333;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        margin: 5px;
+        border-radius: 5px;
+    }
+    .update-cart-btn {
+        margin: auto;
+    }
+    .increase, .decrease {
+        background-color: gray;
+    }
+    .update-cart-btn:hover {
+        background-color: #222;
+    }
+</style>
+
+<div class="container">
+    <h2 class="category-title">{{ category.name }}</h2>
+
+    {% if products %}
+        <div class="products-grid">
+            {% for product in products %}
+            <div class="product-card" data-product-id="{{ product.id }}">
+                <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                <h5>{{ product.name }}</h5>
+                <p><strong>₹{{ product.price }}</strong></p>
+                <p class="text-muted">{{ product.unit }}</p>
+
+                <div id="increase-decrese-button-{{ product.id }}" {% if product.id in cart_info %} style="display: block;" {% else %} style="display: none;" {% endif %}>
+                    <button class="decrease" data-product-id="{{ product.id }}">-</button>
+                    <span id="quantity-{{ product.id }}">{{ cart_info|get_item:product.id }}</span>
+                    <button class="increase" data-product-id="{{ product.id }}">+</button>
+                </div>
+
+                <button id="add-cart-btn-{{ product.id }}" class="update-cart-btn" {% if product.id in cart_info %} style="display: none;" {% else %} style="display: block;" {% endif %} data-product-id="{{ product.id }}">
+                    <span id="cart-text-{{ product.id }}">Add to Cart</span>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div style="text-align: center; font-size: 20px; font-weight: bold; color: #ff0000; margin: 20px;">
+            No products found in this category.
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    function updateCart(productId, action) {
+        fetch("{% url 'update_cart_quantity' 0 %}".replace('0', productId), {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ "action": action })
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                return response.json();
+            }
+        })
+        .then(data => {
+            if (data.quantity > 0) {
+                document.getElementById(`increase-decrese-button-${productId}`).style.display = 'block';
+                document.getElementById(`quantity-${productId}`).innerText = `${data.quantity}`;
+                document.getElementById(`add-cart-btn-${productId}`).style.display = 'none';
+            } else {
+                document.getElementById(`increase-decrese-button-${productId}`).style.display = 'none';
+                document.getElementById(`quantity-${productId}`).innerText = '0';
+                document.getElementById(`add-cart-btn-${productId}`).style.display = 'block';
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        document.querySelectorAll(".product-card").forEach(card => {
+            card.addEventListener("click", function(event) {
+                if (!event.target.classList.contains("update-cart-btn") && !event.target.classList.contains("quantity-input")) {
+                    window.location.href = "{% url 'product_detail' 0 %}".replace("0", this.dataset.productId);
+                }
+            });
+        });
+        
+        document.querySelectorAll(".update-cart-btn").forEach(button => {
+            button.addEventListener("click", function(event) {
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'increase');
+            });
+        });
+
+        document.querySelectorAll(".increase").forEach(button => {
+            button.addEventListener("click", function(event) {
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'increase');
+            });
+        });
+
+        document.querySelectorAll(".decrease").forEach(button => {
+            button.addEventListener("click", function(event) {
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'decrease');
+            });
+        });
+    });
+</script>
+
+{% endblock %}

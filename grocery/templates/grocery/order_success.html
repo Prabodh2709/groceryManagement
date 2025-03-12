@@ -1,0 +1,78 @@
+{% extends 'grocery/base.html' %}
+
+{% block content %}
+<style>
+    nav {
+        visibility: hidden;
+    }
+    .container {
+        width: 100%;
+        max-width: 600px;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    .success-message h2 {
+        color: #28a745;
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+    .success-message p {
+        font-size: 18px;
+        color: #555;
+    }
+    .order-summary {
+        margin-top: 20px;
+        padding: 15px;
+        background: #f9f9f9;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .order-summary h3 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+    .order-summary ul {
+        list-style: none;
+        padding: 0;
+    }
+    .order-summary li {
+        padding: 10px;
+        font-size: 16px;
+        border-bottom: 1px solid #ddd;
+    }
+    .order-summary li:last-child {
+        border-bottom: none;
+    }
+    .btn-primary {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 10px 20px;
+        background: #333;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+    }
+    .btn-primary:hover {
+        background: #222;
+    }
+</style>
+
+<div class="container">
+    <div class="success-message">
+        <h2>Order Placed Successfully! ✨</h2>
+        <p>Thank you for shopping with us. Your order has been placed.</p>
+    </div>
+
+    <div class="order-summary">
+        <h3>Order Summary</h3>
+        <ul>
+            <li><strong>Order ID:</strong> {{ order.id }}</li>
+            <li><strong>Total Amount:</strong> ₹{{ order.total_price }}</li>
+        </ul>
+    </div>
+
+    <a href="{% url 'home' %}" class="btn-primary">Continue Shopping</a>
+</div>
+{% endblock %}

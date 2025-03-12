@@ -1,0 +1,188 @@
+{% extends 'grocery/base.html' %}
+{% block content %}
+{% load cart_filters %}
+<style>
+    .container {
+        width: 100%;
+        text-align: center;
+    }
+    .category-section {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin: 20px 0;
+    }
+    .category-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .product-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        margin: 15px;
+        padding: 15px;
+        width: 250px;
+        cursor: pointer;
+        text-align: center;
+        transition: transform 0.3s;
+    }
+
+    .product-card:hover {
+        transform: scale(1.05);
+    }
+    .product-card img {
+        width: 100%;
+        height: 200px;
+        border-radius: 5px;
+    }
+    .product-card h5 {
+        margin: 10px 0;
+    }
+    .product-card p {
+        color: #555;
+        margin: 5px 0;
+    }
+    .update-cart-btn, .increase, .decrease {
+        background-color: #333;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        margin: 5px;
+        border-radius: 5px;
+    }
+    .update-cart-btn {
+        margin: auto;
+    }
+    .increase, .decrease {
+        background-color: gray;
+    }
+    .update-cart-btn:hover {
+        background-color: #333;
+    }
+    .view-more {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 10px 20px;
+        background: #333;
+        color: white;
+        border-radius: 5px;
+        text-decoration: none;
+    }
+    .view-more:hover {
+        background: #222222;
+    }
+</style>
+
+<div class="container">
+    <h2>Welcome to Our Grocery Store 🛒</h2>
+    {% if products|is_dictionary_empty == 0 %}
+        <div style="text-align: center; font-size: 20px; font-weight: bold; color: #ff0000; margin: 20px;">
+            No Item Found
+        </div>
+    {% else %}
+        {% for category, products in products.items %}
+        <div class="category-section">
+            <h3 class="category-title">{{ category.name }}</h3>
+            <div class="row">
+                {% for product in products %}
+                <div class="product-card" data-product-id="{{ product.id }}">
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                    <h5>{{ product.name }}</h5>
+                    <p>₹{{ product.price }}</p>
+                    <p class="text-muted">{{ product.unit }}</p>
+
+                    <div id="increase-decrese-button-{{ product.id }}" {% if product.id in cart_info %} style="display: block;" {% else %} style="display: none;" {% endif %}>
+                        <button class="decrease" data-product-id="{{ product.id }}">-</button>
+                        <span id="quantity-{{ product.id }}">{{ cart_info|get_item:product.id }}</span>
+                        <button class="increase" data-product-id="{{ product.id }}">+</button>
+                    </div>
+                    <button id="add-cart-btn-{{ product.id }}" class="update-cart-btn" {% if product.id in cart_info %} style="display: none;" {% else %} style="display: block;" {% endif %} data-product-id="{{ product.id }}">
+                        <span id="cart-text-{{ product.id }}">Add to Cart</span>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="{% url 'category_products' category.id %}" class="view-more">View More</a>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<script>
+    function updateCart(productId, action) {
+        fetch("{% url 'update_cart_quantity' 0 %}".replace('0', productId), {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ "action": action })
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                return response.json();
+            }
+        })
+        .then(data => {
+            console.log(data)
+            if (data.quantity > 0) {
+                document.getElementById(`increase-decrese-button-${productId}`).style.display = 'block';
+                document.getElementById(`quantity-${productId}`).innerText = `${data.quantity}`;
+                document.getElementById(`add-cart-btn-${productId}`).style.display = 'none';
+            } else {
+                document.getElementById(`increase-decrese-button-${productId}`).style.display = 'none';
+                document.getElementById(`quantity-${productId}`).innerText = '0';
+                document.getElementById(`add-cart-btn-${productId}`).style.display = 'block';
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        document.querySelectorAll(".product-card").forEach(card => {
+            card.addEventListener("click", function(event) {
+                if (!event.target.classList.contains("update-cart-btn") && !event.target.classList.contains("quantity-input")) {
+                    window.location.href = "{% url 'product_detail' 0 %}".replace("0", this.dataset.productId);
+                }
+            });
+        });
+
+        document.querySelectorAll(".update-cart-btn").forEach(button => {
+            button.addEventListener("click", function(event) {
+                console.log("added")
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'increase');
+            });
+        });
+
+        document.querySelectorAll(".increase").forEach(button => {
+            button.addEventListener("click", function(event) {
+                console.log("added")
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'increase');
+            });
+        });
+
+        document.querySelectorAll(".decrease").forEach(button => {
+            button.addEventListener("click", function(event) {
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'decrease');
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends 'grocery/base.html' %}
+
+{% block content %}
+<style>
+.checkout-container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
+
+.checkout-container h2 {
+    text-align: center;
+    color: #333;
+}
+
+.checkout-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checkout-form label {
+    font-weight: bold;
+    text-align: left;
+    display: block;
+}
+
+.card-details-row {
+    display: flex;
+    gap: 10px;
+}
+
+.card-details-row div {
+    flex: 1;
+}
+
+.checkout-form input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.checkout-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 15px;
+
+}
+
+.checkout-btn:hover {
+    background-color: #218838;
+}
+
+.checkout-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.checkout-btn:not(:disabled):hover {
+    background-color: #218838;
+}
+
+.error-message {
+    color: red;
+    font-weight: bold;
+    text-align: center;
+}
+</style>
+
+<div class="checkout-container">
+    <h2>Checkout</h2>
+    <h3>Total: ₹{{ total_price }}</h3>
+
+    {% if messages %}
+        <p class="error-message">{{ messages }}</p>
+    {% endif %}
+
+    <form method="POST" class="checkout-form">
+        {% csrf_token %}
+        
+        <label>Card Number:</label>
+        <input id="card_number" type="text" name="card_number" maxlength="16" required oninput="validateForm()">
+
+        <div class="card-details-row">
+            <div>
+                <label>CVV:</label>
+                <input id="cvv" type="text" name="cvv" maxlength="3" required oninput="validateForm()">
+            </div>
+            <div>
+                <label>Expiry Date (MM/YY):</label>
+                <input id="expiry" type="text" name="expiry" maxlength="5" placeholder="MM/YY" required oninput="validateForm()">
+            </div>
+        </div>
+
+        <label>Cardholder Name:</label>
+        <input id="card_name" type="text" name="card_name" required oninput="validateForm()">
+
+        <button id="payNowButton" type="submit" class="checkout-btn" onclick="processPayment()" disabled>Pay Now</button>
+    </form>
+</div>
+<script>
+    function validateForm() {
+        let cardNumber = document.getElementById("card_number").value;
+        let cvv = document.getElementById("cvv").value;
+        let expiry = document.getElementById("expiry").value;
+        let cardName = document.getElementById("card_name").value;
+        let payNowButton = document.getElementById("payNowButton");
+        console.log(cardNumber.length === 16 && cvv.length === 3 && expiry.length === 5 && cardName.length >= 1)
+        if (cardNumber.length === 16 && cvv.length === 3 && expiry.length === 5 && cardName.length >= 1) {
+            payNowButton.disabled = false;
+            payNowButton
+        } else {
+            payNowButton.disabled = true;
+        }
+    }
+    function processPayment() {
+        let cardNumber = document.getElementById("card_number").value;
+        let cvv = document.getElementById("cvv").value;
+        let expiry = document.getElementById("expiry").value;
+        fetch("{% url 'place_order' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                card_number: cardNumber,
+                cvv: cvv,
+                expiry: expiry
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+            } else {
+                document.getElementById("error-message").innerText = data.message;
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+</script>
+
+{% endblock %}

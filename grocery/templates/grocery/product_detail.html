@@ -1,0 +1,289 @@
+{% extends 'grocery/base.html' %}
+{% block content %}
+{% load cart_filters %}
+<style>
+    .product-container {
+        display: flex;
+        gap: 30px;
+        padding: 20px;
+        max-width: 900px;
+        margin: auto;
+    }
+
+    .product-image img {
+        width: 300px;
+        height: 300px;
+        object-fit: cover;
+        border-radius: 10px;
+        box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .product-info {
+        align-self: center;
+        margin-top: 15px;
+        flex: 1;
+        margin: auto;
+    }
+
+    .product-title {
+        font-size: 22px;
+        font-weight: bold;
+    }
+
+    .product-category {
+        font-size: 14px;
+        color: #555;
+        margin-bottom: 10px;
+    }
+
+    .product-price {
+        font-size: 20px;
+        color: #28a745;
+        margin-bottom: 10px;
+    }
+
+    .stock-status {
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .update-cart-btn{
+        display: flex;
+        align-items: center;
+        margin-top: 15px;
+        background-color: #333;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    .increase, .decrease {
+        background-color: gray;
+        align-items: center;
+        margin-top: 15px;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+    .update-cart-btn:hover {
+        background-color: #333;
+    }
+
+    .comment-section {
+        margin-top: 30px;
+        padding: 15px;
+        border-top: 1px solid #ddd;
+    }
+
+    .comment-box textarea {
+        width: 100%;
+        height: 80px;
+        resize: none;
+        padding: 8px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+
+    .comment-box button {
+        margin-top: 10px;
+        padding: 8px 12px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .comments-list {
+        margin-top: 15px;
+    }
+
+    .comment-item {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .comment-user {
+        font-weight: bold;
+    }
+
+    .comment-text {
+        font-size: 14px;
+        margin-top: 5px;
+    }
+</style>
+
+<div class="product-container">
+    <div class="product-image">
+        <img src="{{ product.image.url }}" alt="{{ product.name }}">
+    </div>
+
+    <div class="product-info">
+        <h1 class="product-title">{{ product.name }}</h1>
+        <p class="product-category">Category: {{ product.category }}</p>
+        <p class="product-price">₹{{ product.price }}</p>
+
+        <p class="stock-status">
+            {% if product.stock > 0 %}
+                ✅ In Stock: {{ product.stock }}
+            {% else %}
+                ❌ <span style="color: red;">Out of Stock</span>
+            {% endif %}
+        </p>
+
+        <div>
+            <span style="color: gold;">
+                {% for i in "12345"|make_list %}
+                    {% if forloop.counter == product.rating %}
+                        ★
+                    {% else %}
+                        ☆
+                    {% endif %}
+                {% endfor %}
+            </span>
+            <span style="font-size: 14px;">({{ product.reviews.count }} reviews)</span>
+        </div>
+
+        <div id="increase-decrese-button-{{ product.id }}" {% if product.id in cart_info %} style="display: block;" {% else %} style="display: none;" {% endif %}>
+            <button class="decrease" data-product-id="{{ product.id }}">-</button>
+            <span id="quantity-{{ product.id }}">{{ cart_info|get_item:product.id }}</span>
+            <button class="increase" data-product-id="{{ product.id }}">+</button>
+        </div>
+        <button id="add-cart-btn-{{ product.id }}" class="update-cart-btn" {% if product.id in cart_info %} style="display: none;" {% else %} style="display: block;" {% endif %} data-product-id="{{ product.id }}">
+            <span id="cart-text-{{ product.id }}">Add to Cart</span>
+        </button>
+    </div>
+</div>
+
+<div class="comment-section">
+    <h3>Customer Reviews</h3>
+
+    <div class="comment-box">
+        <form method="POST" data-product-id="{{ product.id }}">
+            {% csrf_token %}
+            <textarea id="comment-text" name="comment_text" placeholder="Write your review (max 300 characters)" maxlength="300" required></textarea>
+            <button type="submit">Submit Review</button>
+        </form>
+    </div>
+
+    <div class="comments-list">
+        {% for comment in product.reviews.all %}
+            <div class="comment-item">
+                <p class="comment-user">{{ comment.user.username }} ⭐ {{ comment }}/5</p>
+                <p class="comment-text">{{ comment.text }}</p>
+                <small style="color: gray;">{{ comment.created_at|date:"d M Y, H:i" }}</small>
+            </div>
+        {% empty %}
+            <p>No reviews yet. Be the first to review this product!</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    function updateCart(productId, action) {
+        fetch("{% url 'update_cart_quantity' 0 %}".replace('0', productId), {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ "action": action })
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                return response.json();
+            }
+        })
+        .then(data => {
+            if (data.quantity > 0) {
+                document.getElementById(`increase-decrese-button-${productId}`).style.display = 'block';
+                document.getElementById(`quantity-${productId}`).innerText = `${data.quantity}`;
+                document.getElementById(`add-cart-btn-${productId}`).style.display = 'none';
+            } else {
+                document.getElementById(`increase-decrese-button-${productId}`).style.display = 'none';
+                document.getElementById(`quantity-${productId}`).innerText = '0';
+                document.getElementById(`add-cart-btn-${productId}`).style.display = 'block';
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const commentList = document.querySelector(".comments-list");
+        const commentForm = document.querySelector(".comment-box form");
+        commentForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            const commentText = document.getElementById("comment-text").value;
+            console.log(commentForm)
+            const productId = commentForm.dataset.productId;
+
+            fetch(`/submit-comment/${productId}/`, {
+                method: "POST",
+                body: JSON.stringify({ comment_text: commentText }),
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    return response.json();
+                }
+            })
+            .then(data => {
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    const newComment = document.createElement("li");
+                    newComment.innerHTML = `<strong>${data.user}:</strong> ${data.text}`;
+                    commentList.prepend(newComment);
+                    commentForm.reset();
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        });
+
+
+        document.querySelectorAll(".product-card").forEach(card => {
+            card.addEventListener("click", function(event) {
+                if (!event.target.classList.contains("update-cart-btn") && !event.target.classList.contains("quantity-input")) {
+                    window.location.href = "{% url 'product_detail' 0 %}".replace("0", this.dataset.productId);
+                }
+            });
+        });
+
+        document.querySelectorAll(".update-cart-btn").forEach(button => {
+            button.addEventListener("click", function(event) {
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'increase');
+            });
+        });
+
+        document.querySelectorAll(".increase").forEach(button => {
+            button.addEventListener("click", function(event) {
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'increase');
+            });
+        });
+
+        document.querySelectorAll(".decrease").forEach(button => {
+            button.addEventListener("click", function(event) {
+                event.stopPropagation();
+                let productId = this.dataset.productId;
+                updateCart(productId, 'decrease');
+            });
+        });
+    });
+</script>
+
+{% endblock %}
