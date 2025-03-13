@@ -10,14 +10,15 @@ class Category(models.Model):
         return self.name
 
 class Product(models.Model):
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)  # ✅ Added Category Link
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)  # Added Category Link
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.IntegerField(default=0)
     image = models.ImageField(upload_to='products_images/', blank=True, null=True)
     unit = models.CharField(max_length=50, default="unit")
-    rating = models.FloatField(default=0)
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
+    total_ratings = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -27,13 +28,13 @@ class Product(models.Model):
             raise ValueError("Stock cannot be negative")
         super().save(*args, **kwargs)
 
-    def update_rating(self):
-        """Update product rating based on comments"""
-        reviews = self.reviews.all()
-        if reviews.exists():
-            avg_rating = sum([review.rating for review in reviews]) / reviews.count()
-            self.rating = round(avg_rating, 1)
-            self.save()
+    def update_rating(self, new_rating):
+        if self.total_ratings == 0:
+            self.rating = new_rating
+        else:
+            self.rating = ((self.rating * self.total_ratings) + new_rating) / (self.total_ratings + 1)
+        self.total_ratings += 1
+        self.save()
 
     def __str__(self):
         return self.name
@@ -92,14 +93,15 @@ class Transaction(models.Model):
 class Comment(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    text = models.TextField(max_length=300)
-    rating = models.PositiveIntegerField(default=5)
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        """Save comment and update product rating"""
+        is_new = self.pk is None
         super().save(*args, **kwargs)
-        self.product.update_rating()
+        if is_new:
+            self.product.update_rating(self.rating)
 
     def __str__(self):
-        return f"Review by {self.user.username} on {self.product.name}"
+        return f"{self.user.username}'s review on {self.product.name}"

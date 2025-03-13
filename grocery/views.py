@@ -49,12 +49,30 @@ def product_detail(request, product_id):
 @login_required(login_url='/account/login/')
 def submit_comment(request, product_id):
     if request.method == "POST":
-        comment_text = json.loads(request.body)['comment_text']
+        data = json.loads(request.body)
+        comment_text = data.get('comment_text')
+        rating = data.get('rating')
+        
+        if not rating or not isinstance(rating, int) or rating < 1 or rating > 5:
+            return JsonResponse({"error": "Invalid rating. Please provide a rating between 1 and 5."}, status=400)
+            
         product = get_object_or_404(Product, id=product_id)
 
         if comment_text:
-            comment = Comment.objects.create(product=product, user=request.user, text=comment_text)
-            return JsonResponse({"user": request.user.username, "text": comment.text}, status=201)
+            comment = Comment.objects.create(
+                product=product,
+                user=request.user,
+                comment=comment_text,
+                rating=rating
+            )
+            return JsonResponse({
+                "user": request.user.username,
+                "comment": comment.comment,
+                "rating": comment.rating,
+                "created_at": comment.created_at.strftime("%B %d, %Y"),
+                "product_rating": float(product.rating),
+                "total_ratings": product.total_ratings
+            }, status=201)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
 
