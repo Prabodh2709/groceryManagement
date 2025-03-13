@@ -3,57 +3,111 @@
 {% block content %}
 <style>
 .checkout-container {
-    max-width: 600px;
+    max-width: 800px;
     margin: 40px auto;
     padding: 20px;
+}
+
+.checkout-section {
     background: white;
     border-radius: 8px;
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
 }
 
-.checkout-container h2 {
-    text-align: center;
+.section-title {
     color: #333;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .checkout-form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 15px;
 }
 
-.checkout-form label {
-    font-weight: bold;
-    text-align: left;
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    font-weight: 500;
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.required {
+    color: #dc3545;
+    margin-left: 3px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+    padding-right: calc(1.5em + .75rem);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23dc3545' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(.375em + .1875rem) center;
+    background-size: calc(.75em + .375rem) calc(.75em + .375rem);
+}
+
+.invalid-feedback {
+    display: none;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 14px;
+    color: #dc3545;
+}
+
+.form-control.is-invalid ~ .invalid-feedback {
     display: block;
 }
 
-.card-details-row {
-    display: flex;
-    gap: 10px;
+.card-details {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 15px;
 }
 
-.card-details-row div {
-    flex: 1;
-}
-
-.checkout-form input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
+.order-summary {
+    background-color: #f8f9fa;
+    padding: 15px;
     border-radius: 5px;
+}
+
+.order-summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
 }
 
 .checkout-btn {
     background-color: #28a745;
     color: white;
     border: none;
-    padding: 10px;
+    padding: 12px;
     border-radius: 5px;
     cursor: pointer;
     font-size: 16px;
+    width: 100%;
     margin-top: 15px;
-
 }
 
 .checkout-btn:hover {
@@ -65,88 +119,181 @@
     cursor: not-allowed;
 }
 
-.checkout-btn:not(:disabled):hover {
-    background-color: #218838;
+.alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    text-align: center;
 }
 
-.error-message {
-    color: red;
-    font-weight: bold;
-    text-align: center;
+.alert-danger {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>
 
 <div class="checkout-container">
-    <h2>Checkout</h2>
-    <h3>Total: ₹{{ total_price }}</h3>
-
     {% if messages %}
-        <p class="error-message">{{ messages }}</p>
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {% if message.tags == 'error' %}
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                {% elif message.tags == 'success' %}
+                    <i class="bi bi-check-circle-fill"></i>
+                {% endif %}
+                {{ message }}
+            </div>
+        {% endfor %}
     {% endif %}
 
-    <form method="POST" class="checkout-form">
+    <form method="POST" class="checkout-form" id="checkoutForm">
         {% csrf_token %}
         
-        <label>Card Number:</label>
-        <input id="card_number" type="text" name="card_number" maxlength="16" required oninput="validateForm()">
-
-        <div class="card-details-row">
-            <div>
-                <label>CVV:</label>
-                <input id="cvv" type="text" name="cvv" maxlength="3" required oninput="validateForm()">
-            </div>
-            <div>
-                <label>Expiry Date (MM/YY):</label>
-                <input id="expiry" type="text" name="expiry" maxlength="5" placeholder="MM/YY" required oninput="validateForm()">
+        <!-- Shipping Address Section -->
+        <div class="checkout-section">
+            <h3 class="section-title">Shipping Address</h3>
+            <div class="form-group">
+                <label for="shipping_address">Delivery Address <span class="required">*</span></label>
+                <textarea id="shipping_address" name="shipping_address" rows="3" required 
+                         oninput="validateForm()" class="form-control">{{ default_address }}</textarea>
+                <div class="invalid-feedback">Please enter a delivery address</div>
             </div>
         </div>
 
-        <label>Cardholder Name:</label>
-        <input id="card_name" type="text" name="card_name" required oninput="validateForm()">
+        <!-- Order Summary Section -->
+        <div class="checkout-section">
+            <h3 class="section-title">Order Summary</h3>
+            <div class="order-summary">
+                {% for item in cart_items %}
+                <div class="order-summary-item">
+                    <span>{{ item.product.name }} × {{ item.quantity }}</span>
+                    <span>₹{{ item.total_price }}</span>
+                </div>
+                {% endfor %}
+                <hr>
+                <div class="order-summary-item">
+                    <strong>Total Amount</strong>
+                    <strong>₹{{ total_amount }}</strong>
+                </div>
+            </div>
+        </div>
 
-        <button id="payNowButton" type="submit" class="checkout-btn" onclick="processPayment()" disabled>Pay Now</button>
+        <!-- Payment Section -->
+        <div class="checkout-section">
+            <h3 class="section-title">Payment Details</h3>
+            <div class="card-details">
+                <div class="form-group">
+                    <label for="card_number">Card Number <span class="required">*</span></label>
+                    <input type="text" id="card_number" name="card_number" maxlength="16" required 
+                           class="form-control" oninput="validateForm()">
+                    <div class="invalid-feedback">Please enter a valid 16-digit card number</div>
+                </div>
+                <div class="form-group">
+                    <label for="cvv">CVV <span class="required">*</span></label>
+                    <input type="text" id="cvv" name="cvv" maxlength="3" required 
+                           class="form-control" oninput="validateForm()">
+                    <div class="invalid-feedback">Please enter a valid 3-digit CVV</div>
+                </div>
+                <div class="form-group">
+                    <label for="expiry">Expiry (MM/YY) <span class="required">*</span></label>
+                    <input type="text" id="expiry" name="expiry" maxlength="5" required 
+                           class="form-control" oninput="validateForm()">
+                    <div class="invalid-feedback">Please enter a valid expiry date (MM/YY)</div>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="checkout-btn" id="payNowButton">
+            Pay ₹{{ total_amount }}
+        </button>
     </form>
 </div>
-<script>
-    function validateForm() {
-        let cardNumber = document.getElementById("card_number").value;
-        let cvv = document.getElementById("cvv").value;
-        let expiry = document.getElementById("expiry").value;
-        let cardName = document.getElementById("card_name").value;
-        let payNowButton = document.getElementById("payNowButton");
-        console.log(cardNumber.length === 16 && cvv.length === 3 && expiry.length === 5 && cardName.length >= 1)
-        if (cardNumber.length === 16 && cvv.length === 3 && expiry.length === 5 && cardName.length >= 1) {
-            payNowButton.disabled = false;
-            payNowButton
-        } else {
-            payNowButton.disabled = true;
-        }
-    }
-    function processPayment() {
-        let cardNumber = document.getElementById("card_number").value;
-        let cvv = document.getElementById("cvv").value;
-        let expiry = document.getElementById("expiry").value;
-        fetch("{% url 'place_order' %}", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify({
-                card_number: cardNumber,
-                cvv: cvv,
-                expiry: expiry
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-            } else {
-                document.getElementById("error-message").innerText = data.message;
-            }
-        })
-        .catch(error => console.error("Error:", error));
-    }
-</script>
 
+<script>
+function validateForm() {
+    const cardNumber = document.getElementById("card_number").value;
+    const cvv = document.getElementById("cvv").value;
+    const expiry = document.getElementById("expiry").value;
+    const address = document.getElementById("shipping_address").value;
+    const payNowButton = document.getElementById("payNowButton");
+    
+    const addressField = document.getElementById("shipping_address");
+    const cardNumberField = document.getElementById("card_number");
+    const cvvField = document.getElementById("cvv");
+    const expiryField = document.getElementById("expiry");
+
+    // Validate card number
+    if (!cardNumber || cardNumber.length !== 16 || !/^\d+$/.test(cardNumber)) {
+        cardNumberField.classList.add('is-invalid');
+    } else {
+        cardNumberField.classList.remove('is-invalid');
+    }
+
+    // Validate CVV
+    if (!cvv || cvv.length !== 3 || !/^\d+$/.test(cvv)) {
+        cvvField.classList.add('is-invalid');
+    } else {
+        cvvField.classList.remove('is-invalid');
+    }
+
+    // Validate expiry
+    if (!expiry || !/^\d{2}\/\d{2}$/.test(expiry)) {
+        expiryField.classList.add('is-invalid');
+    } else {
+        expiryField.classList.remove('is-invalid');
+    }
+
+    // Validate address
+    if (!address.trim()) {
+        addressField.classList.add('is-invalid');
+    } else {
+        addressField.classList.remove('is-invalid');
+    }
+
+    // Check if all fields are valid
+    const isValid = 
+        cardNumber.length === 16 &&
+        /^\d+$/.test(cardNumber) &&  // Only digits
+        cvv.length === 3 &&
+        /^\d+$/.test(cvv) &&  // Only digits
+        /^\d{2}\/\d{2}$/.test(expiry) &&  // MM/YY format
+        address.trim().length > 0;
+
+    payNowButton.disabled = !isValid;
+}
+
+// Initial validation
+document.addEventListener('DOMContentLoaded', validateForm);
+
+// Add format validation for expiry date
+document.getElementById('expiry').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length >= 2) {
+        value = value.substring(0, 2) + '/' + value.substring(2);
+    }
+    e.target.value = value;
+    validateForm();
+});
+
+// Add format validation for card number and CVV
+document.getElementById('card_number').addEventListener('input', function(e) {
+    e.target.value = e.target.value.replace(/\D/g, '');
+    validateForm();
+});
+
+document.getElementById('cvv').addEventListener('input', function(e) {
+    e.target.value = e.target.value.replace(/\D/g, '');
+    validateForm();
+});
+</script>
 {% endblock %}

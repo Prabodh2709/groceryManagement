@@ -60,11 +60,9 @@ class Cart(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = (
+        ('Success', 'Success'),
+        ('Failed', 'Failed'),
         ('Pending', 'Pending'),
-        ('Processing', 'Processing'),
-        ('Shipped', 'Shipped'),
-        ('Delivered', 'Delivered'),
-        ('Cancelled', 'Cancelled'),
     )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -2,6 +2,9 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from .models import UserProfile
+from grocery.models import Order
 
 # User Registration
 def register(request):
@@ -20,6 +23,8 @@ def register(request):
 
         # Create user
         user = User.objects.create_user(username=username, password=password)
+        # Create user profile
+        UserProfile.objects.create(user=user)
         user.save()
 
         messages.success(request, "Registration successful! You can now log in.")
@@ -44,3 +49,27 @@ def user_login(request):
 def user_logout(request):
     logout(request)
     return redirect('login')  # Redirect to login page after logout
+
+@login_required
+def profile(request):
+    user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+    orders = Order.objects.filter(user=request.user).order_by('-ordered_at')
+    
+    if request.method == 'POST':
+        user_profile.phone_number = request.POST.get('phone_number', '')
+        user_profile.address = request.POST.get('address', '')
+        user_profile.save()
+        
+        # Update user information
+        request.user.first_name = request.POST.get('first_name', '')
+        request.user.last_name = request.POST.get('last_name', '')
+        request.user.email = request.POST.get('email', '')
+        request.user.save()
+        
+        messages.success(request, 'Profile updated successfully!')
+        return redirect('profile')
+        
+    return render(request, 'accounts/profile.html', {
+        'profile': user_profile,
+        'orders': orders
+    })
