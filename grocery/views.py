@@ -37,14 +37,18 @@ def category_view(request, category_id):
 # Product Detail Page
 def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
-    cart_items =[]
+    cart_items = []
     if request.user.is_authenticated:
         cart_items = Cart.objects.filter(user=request.user)
-    comments = product.reviews.all().order_by('-created_at')
+    comments = product.reviews.all().order_by('-created_at')  # Order by newest first
     cart_info = {}
     for item in cart_items:
         cart_info[item.product_id] = item.quantity
-    return render(request, 'grocery/product_detail.html', {'product': product, 'cart_info': cart_info, 'comments': comments})
+    return render(request, 'grocery/product_detail.html', {
+        'product': product,
+        'cart_info': cart_info,
+        'comments': comments
+    })
 
 @login_required(login_url='/account/login/')
 def submit_comment(request, product_id):
@@ -71,7 +75,8 @@ def submit_comment(request, product_id):
                 "rating": comment.rating,
                 "created_at": comment.created_at.strftime("%B %d, %Y"),
                 "product_rating": float(product.rating),
-                "total_ratings": product.total_ratings
+                "total_ratings": product.total_ratings,
+                "star_rating": product.get_star_rating()  
             }, status=201)
 
     return JsonResponse({"error": "Invalid request"}, status=400)

@@ -17,7 +17,7 @@ class Product(models.Model):
     stock = models.IntegerField(default=0)
     image = models.ImageField(upload_to='products_images/', blank=True, null=True)
     unit = models.CharField(max_length=50, default="unit")
-    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
+    rating = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
     total_ratings = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -29,12 +29,19 @@ class Product(models.Model):
         super().save(*args, **kwargs)
 
     def update_rating(self, new_rating):
-        if self.total_ratings == 0:
-            self.rating = new_rating
-        else:
-            self.rating = ((self.rating * self.total_ratings) + new_rating) / (self.total_ratings + 1)
+        """Update the product rating when a new rating is submitted (1-5 stars)"""
+        # Ensure new_rating is between 1-5
+        new_rating = min(max(int(new_rating), 1), 5)
+        
+        # Calculate new total and average
+        current_total = self.rating * self.total_ratings
         self.total_ratings += 1
+        self.rating = round((current_total + new_rating) / self.total_ratings, 1)
         self.save()
+
+    def get_star_rating(self):
+        """Get the star rating rounded to nearest whole number for display"""
+        return min(5, max(1, round(float(self.rating))))
 
     def __str__(self):
         return self.name

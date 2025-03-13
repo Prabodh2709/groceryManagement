@@ -81,22 +81,6 @@
     .view-more:hover {
         background: #222222;
     }
-    .product-rating {
-        color: gold;
-        font-size: 16px;
-        margin: 5px 0;
-    }
-    .product-rating .star {
-        color: #ddd;
-    }
-    .product-rating .star.filled {
-        color: gold;
-    }
-    .rating-count {
-        color: #666;
-        font-size: 12px;
-        margin-left: 5px;
-    }
 </style>
 
 <div class="container">
@@ -116,16 +100,7 @@
                     <h5>{{ product.name }}</h5>
                     <p>₹{{ product.price }}</p>
                     <p class="text-muted">{{ product.unit }}</p>
-                    <div class="product-rating">
-                        {% for i in "12345"|make_list %}
-                            {% if forloop.counter <= product.rating %}
-                                <span class="star filled">★</span>
-                            {% else %}
-                                <span class="star">☆</span>
-                            {% endif %}
-                        {% endfor %}
-                        <span class="rating-count">({{ product.reviews.count }})</span>
-                    </div>
+
                     <div id="increase-decrese-button-{{ product.id }}" {% if product.id in cart_info %} style="display: block;" {% else %} style="display: none;" {% endif %}>
                         <button class="decrease" data-product-id="{{ product.id }}">-</button>
                         <span id="quantity-{{ product.id }}">{{ cart_info|get_item:product.id }}</span>

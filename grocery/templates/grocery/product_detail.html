@@ -98,26 +98,28 @@
         color: #ddd;
         font-size: 24px;
         padding: 0 2px;
+        transition: color 0.2s;
     }
     
     .star-rating input:checked ~ label,
     .star-rating label:hover,
     .star-rating label:hover ~ label {
-        color: gold;
+        color: #FFD700;  
     }
     
     .rating {
-        color: gold;
+        color: #ddd;
         font-size: 18px;
         margin: 5px 0;
     }
     
-    .star {
+    .rating .star {
         color: #ddd;
+        transition: color 0.2s;
     }
     
-    .star.filled {
-        color: gold;
+    .rating .star.filled {
+        color: #FFD700;
     }
     
     .comment-date {
@@ -161,6 +163,31 @@
     .comments-list {
         margin-top: 15px;
     }
+
+    .product-rating {
+        margin: 10px 0;
+    }
+    
+    .product-rating .stars {
+        display: inline-block;
+        font-size: 24px;
+    }
+    
+    .product-rating .star {
+        color: #ddd;
+        transition: color 0.2s;
+    }
+    
+    .product-rating .star.filled {
+        color: #FFD700;
+    }
+    
+    .product-rating .rating-count {
+        color: #666;
+        font-size: 14px;
+        margin-left: 5px;
+        vertical-align: middle;
+    }
 </style>
 
 <div class="product-container">
@@ -181,17 +208,13 @@
             {% endif %}
         </p>
 
-        <div>
-            <span style="color: gold;">
+        <div class="product-rating">
+            <div class="stars">
                 {% for i in "12345"|make_list %}
-                    {% if forloop.counter == product.rating %}
-                        ★
-                    {% else %}
-                        ☆
-                    {% endif %}
+                    <span class="star {% if forloop.counter <= product.get_star_rating %}filled{% endif %}">★</span>
                 {% endfor %}
-            </span>
-            <span style="font-size: 14px;">({{ product.reviews.count }} reviews)</span>
+            </div>
+            <span class="rating-count">{{ product.rating|floatformat:1 }} ({{ product.reviews.count }} reviews)</span>
         </div>
 
         <div id="increase-decrese-button-{{ product.id }}" {% if product.id in cart_info %} style="display: block;" {% else %} style="display: none;" {% endif %}>
@@ -230,13 +253,13 @@
             <div class="comment-item">
                 <p class="comment-user">{{ comment.user.username }}</p>
                 <div class="rating">
-                    {% for i in "12345"|make_list %}
-                        {% if forloop.counter <= comment.rating %}
-                            <span class="star filled">★</span>
-                        {% else %}
-                            <span class="star">☆</span>
-                        {% endif %}
+                    {% with ''|center:5 as range %}
+                    {% for _ in range %}
+                        {% with forloop.counter as i %}
+                        <span class="star {% if i <= comment.rating %}filled{% endif %}">★</span>
+                        {% endwith %}
                     {% endfor %}
+                    {% endwith %}
                 </div>
                 <p class="comment-text">{{ comment.comment }}</p>
                 <small class="comment-date">{{ comment.created_at|date:"F d, Y" }}</small>
@@ -310,30 +333,43 @@
                 // Create new comment element
                 const newComment = document.createElement("div");
                 newComment.className = "comment-item";
+                const stars = Array(5).fill('★').map((star, index) => {
+                    const i = index + 1;
+                    return `<span class="star ${i <= data.rating ? 'filled' : ''}">${star}</span>`;
+                }).join('');
+                
                 newComment.innerHTML = `
                     <p class="comment-user">${data.user}</p>
-                    <div class="rating">
-                        ${"★".repeat(data.rating)}${"☆".repeat(5-data.rating)}
-                    </div>
+                    <div class="rating">${stars}</div>
                     <p class="comment-text">${data.comment}</p>
                     <small class="comment-date">${data.created_at}</small>
                 `;
-                
-                // Update product rating display
-                const productRating = document.querySelector(".product-info .rating");
-                if (productRating) {
-                    productRating.innerHTML = `
-                        ${"★".repeat(Math.round(data.product_rating))}${"☆".repeat(5-Math.round(data.product_rating))}
-                        <span style="font-size: 14px;">(${data.total_ratings} reviews)</span>
-                    `;
+
+                // Remove "no reviews" message if it exists
+                const noReviews = document.querySelector('.comments-list p');
+                if (noReviews && noReviews.textContent.includes('No reviews yet')) {
+                    noReviews.remove();
                 }
                 
-                // Add new comment to the list
-                if (commentList.firstChild) {
-                    commentList.insertBefore(newComment, commentList.firstChild);
-                } else {
-                    commentList.innerHTML = "";
-                    commentList.appendChild(newComment);
+                // Add new comment at the top of the list
+                const commentsList = document.querySelector('.comments-list');
+                commentsList.insertBefore(newComment, commentsList.firstChild);
+                
+                // Update product rating display
+                const productRating = document.querySelector(".product-info .product-rating");
+                if (productRating) {
+                    const starRating = Math.round(parseFloat(data.product_rating));
+                    const stars = Array(5).fill('★').map((star, index) => {
+                        const i = index + 1;
+                        return `<span class="star ${i <= starRating ? 'filled' : ''}">${star}</span>`;
+                    }).join('');
+                    
+                    productRating.innerHTML = `
+                        <div class="stars">
+                            ${stars}
+                        </div>
+                        <span class="rating-count">${parseFloat(data.product_rating).toFixed(1)} (${data.total_ratings} reviews)</span>
+                    `;
                 }
                 
                 // Reset form
